@@ -1,0 +1,84 @@
+version: "3"
+
+services:
+  app-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: app-api
+    restart: "always"
+    ports:
+      - 3001:3001
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      - DB_HOST=mysql
+      - REDIS_HOST=redis
+      - DB_NAME=job-management
+      - DB_USERNAME=root
+      - DB_PASSWORD=root@
+    networks:
+      - master-network
+
+  crawl-data:
+    # image: selenium/standalone-firefox
+    # ports:
+    # - 4444:4444
+    # - 5001:5000
+    build:
+      context: ./crawl-data
+      dockerfile: Dockerfile
+    container_name: crawl-data
+    volumes:
+      - ./crawl-data:/app/crawl-data
+    networks:
+      - master-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: app-sql
+    restart: "always"
+    environment:
+      MYSQL_DATABASE: job-management
+      MYSQL_ROOT_PASSWORD: root@
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin@
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    ports:
+      - 3306:3306
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+    networks:
+      - master-network
+
+  redis:
+    image: redis:6.0.5-alpine
+    container_name: app-redis
+    command: redis-server
+    ports:
+      - 6379:6379
+    restart: "always"
+    volumes:
+      - ./redis/data:/var/lib/redis
+    networks:
+      - master-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+networks:
+  master-network:
+  #docker-compose build
+  #docker-compose up
